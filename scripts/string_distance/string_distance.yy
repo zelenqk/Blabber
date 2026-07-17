@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"string_distance",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"string_distance",
+  "parent":{
+    "name":"Utilities",
+    "path":"folders/Blabber/Utilities.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

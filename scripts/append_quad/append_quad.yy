@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"append_quad",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"append_quad",
+  "parent":{
+    "name":"Utilities",
+    "path":"folders/Blabber/Utilities.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

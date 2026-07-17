@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"Blabber",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"Blabber",
+  "parent":{
+    "name":"Blabber",
+    "path":"folders/Blabber.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}
