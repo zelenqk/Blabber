@@ -1,12 +1,12 @@
 {
   "$GMScript":"v1",
-  "%Name":"Blabber",
+  "%Name":"quad_helpers",
   "isCompatibility":false,
   "isDnD":false,
-  "name":"Blabber",
+  "name":"quad_helpers",
   "parent":{
-    "name":"Blabber",
-    "path":"folders/Blabber.yy",
+    "name":"Util",
+    "path":"folders/Blabber/Util.yy",
   },
   "resourceType":"GMScript",
   "resourceVersion":"2.0",
