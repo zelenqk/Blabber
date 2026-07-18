@@ -17,8 +17,8 @@
   ],
   "name":"rmExample",
   "parent":{
-    "name":"Blabber",
-    "path":"Blabber.yyp",
+    "name":"Blabber Example",
+    "path":"folders/Blabber Example.yy",
   },
   "parentRoom":null,
   "physicsSettings":{

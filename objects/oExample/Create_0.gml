@@ -13,5 +13,5 @@ hello.text(".", 256, c_white);
 hello.text(".", 256, c_white);
 hello.backspace(9, 64);
 hello.text("birthday is tomorow! :D", 64, c_white);
-
+	
 dialog.push(hello);

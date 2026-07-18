@@ -11,8 +11,8 @@
   "name":"oExample",
   "overriddenProperties":[],
   "parent":{
-    "name":"Blabber",
-    "path":"Blabber.yyp",
+    "name":"Blabber Example",
+    "path":"folders/Blabber Example.yy",
   },
   "parentObjectId":null,
   "persistent":false,
