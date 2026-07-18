@@ -1,149 +1,190 @@
-globalvar FALLBACK_FONT, DIALOG_SYSTEM_FORMAT, DIALOG_FONT_CACHE;
+globalvar FALLBACK_FONT, BLABBER_VERTEX_FORMAT;
 
 vertex_format_begin();
 vertex_format_add_position();
 vertex_format_add_color();
 vertex_format_add_texcoord();
 
-DIALOG_SYSTEM_FORMAT = vertex_format_end();
-DIALOG_FONT_CACHE = [];
-
+BLABBER_VERTEX_FORMAT = vertex_format_end();
 FALLBACK_FONT = fntAriel;
 
-function Dialog(w = display_get_gui_width(), h = display_get_gui_height() / 5) constructor {
+function Blabber(w = display_get_gui_width(), h = display_get_gui_height() / 5) constructor {
 	dialogs = [];
 	
 	width = w;
 	height = h;
 	
-	index = 0;
 	time = 0;
-	length = 0;
 	
-	cursor = {
-		x: 0,
-		y: 0,
-		previous: {
-			x: 0,
-			y: 0,
-		}
-	}
-	
-	line = {
-		width: 0,
-		height: 0,
-	}
-	
-	vertex = [];
+	index = 0;
+	current = pointer_null;
 	temporary = vertex_create_buffer();
-	
-	static push = function(bla) {
-		array_push(dialogs, bla);
-	}
-	
-	static blabber_text = function(element) {
-		if (element[BLABBER_TEXT.BUFFER] == pointer_null) {
-			font = element[BLABBER_TEXT.FONT];
-			
-			var index = array_find_index(vertex, function(e) {
-				return (e.font == font);
-			});
-			
-			if (index == -1) {
-				index = {
-					font: element[BLABBER_TEXT.FONT],
-					texture: font_get_texture(element[BLABBER_TEXT.FONT]),
-					buffer: vertex_create_buffer(),
-					
-					length: 0,
-				}
-				
-				vertex_begin(index.buffer, DIALOG_SYSTEM_FORMAT);
-				vertex_end(index.buffer);
-				
-				array_push(vertex, index);
-			}
-			
-			element[BLABBER_TEXT.BUFFER] = index;
-		}
-		
-		var n = (element[BLABBER_TEXT.TIME] > 0) ? floor(time / element[BLABBER_TEXT.TIME]) : element[BLABBER_TEXT.LENGTH];
-		repeat (n) {
-			length++;
-			append_char(element[BLABBER_TEXT.BUFFER], string_char_at(element[BLABBER_TEXT.TEXT], length), element[BLABBER_TEXT.FONT], element[BLABBER_TEXT.COLOR], element[BLABBER_TEXT.ALPHA]);	
-			time = time - floor(time);
-		}
-		
-		if (length >= element[BLABBER_TEXT.LENGTH]) {
-			self.index++;
-			length = 0;
-		}	
-	}
-	
-	static blabber_rewrite = function(element, previous) {
-		var n = (element[BLABBER_TEXT.TIME] > 0) ? floor(time / element[BLABBER_TEXT.TIME]) : element[BLABBER_TEXT.LENGTH];
-		repeat (n) {
-			time = time - floor(time);
-			var index = string_distance(previous[BLABBER_TEXT.TEXT], element[BLABBER_TEXT.TEXT]);
-			
-			//exit and advance if no change needed
-			if (index == 0) {
-				self.index++;
-				length = 0;
-				time = 0;
-				
-				return;
-			}
-		}
-	}
-	
-	static step = function() {
-		var current = dialogs[0];
-		if (index >= array_length(current.stack)) return;
 
-		var element = current.stack[index];
+	length = 1;
+	
+	cursor = {x: 0, y: 0, width: 0, height: 0};
+	//cache
+	vertex = [];
+	
+	static Vertex = function(fnt) constructor {
+		buffer = vertex_create_buffer();
+		length = 0;
+		
+		font = fnt;
+		texture = font_get_texture(font);
+		
+		vertex_begin(buffer, BLABBER_VERTEX_FORMAT);
+		vertex_end(buffer);
+	}
+	
+	static increment = function(){
+		index++;
+		time = 0;
+		
+		current.stack[index][BLABBER.START] = length + current.stack[index - 1][BLABBER.START];
 
-		time += (delta_time / 1000);
+		length = 1;
+		
+		if (array_length(current.stack) <= index) current = pointer_null;
+		else {
+			step = step_time;
+			if (current.stack[index][BLABBER.TIME] == 0) step = step_instant
+			
+		}
+	}
+	
+	static advance = function(element) {
+		time = time - floor(time);
 		
 		switch (element[BLABBER.TYPE]) {
 		case BLABBER.TEXT:
-			blabber_text(element);
+			if (element[BLABBER_TEXT.BUFFER] == pointer_null) {
+				font = element[BLABBER_TEXT.FONT];
+				
+				var buffer = array_find_index(vertex, function(e) {
+					return (e.font == font);	
+				});
+			
+				if (buffer == -1) {
+					element[BLABBER_TEXT.BUFFER] = new Vertex(font)
+					array_push(vertex, element[BLABBER_TEXT.BUFFER]);
+				}else element[BLABBER_TEXT.BUFFER] = vertex[buffer];
+			}
+			
+			var char = string_char_at(element[BLABBER_TEXT.TEXT], length++);
+			var info = font_get_info(element[BLABBER_TEXT.FONT]);
+			var glyph = info.glyphs[$ char];
+			
+			var buffer = element[BLABBER_TEXT.BUFFER];
+			var tw = texture_get_texel_width(buffer.texture);
+			var th = texture_get_texel_height(buffer.texture);
+			
+			append_quad(
+				buffer,
+				buffer.length++,
+				
+				cursor.x + glyph.offset,
+				cursor.y + glyph.yoffset,
+				glyph.w, glyph.h,
+				
+				glyph.x * tw,
+				glyph.y * th,
+				glyph.w * tw,
+				glyph.h * th,
+				
+				element[BLABBER_TEXT.COLOR],
+				element[BLABBER_TEXT.ALPHA],
+			);
+			
+			cursor.x += glyph.shift;
+			cursor.height = max(cursor.height, glyph.h);
+			
+			if (length > string_length(element[BLABBER_TEXT.TEXT])) {
+				increment();
+				return true;
+			}
 			break;
 		case BLABBER.NEW_LINE:
-			cursor.x = 0;
-			cursor.y += line.height;
-			index++;
-			time = 0;
+				cursor.x = 0;
+				cursor.y += cursor.height;
+				cursor.height = 0;
+				cursor.width = 0;
+				
+				increment();
+				return true;
 			break;
-		case BLABBER.REWRITE: 
-			blabber_rewrite(element, current.stack[index - 1]);
+		case BLABBER.REWRITE:
+			var previous =  current.stack[index - 1];
+			var ind = string_distance(element[BLABBER_TEXT.TEXT], previous[BLABBER_REWRITE.TEXT]);
+			
+			if (ind != 0) {
+				if (previous[BLABBER_TEXT.LENGTH] <= string_length(element[BLABBER_REWRITE.TEXT])) {
+					var pos = previous[BLABBER_TEXT.LENGTH]--;
+					var char = string_char_at(previous[BLABBER_TEXT.TEXT], pos);
+					var info = font_get_info(previous[BLABBER_TEXT.FONT]);
+					var glyph = info.glyphs[$ char];
+					
+					cursor.x -= glyph.shift;
+					remove_quad(previous[BLABBER_TEXT.BUFFER], previous[BLABBER.START] + pos);
+					
+				}else append_quad(
+					
+				)
+			}
+			
 			break;
 		}
-
+		
+		return false;
+	}
+	
+	//methods
+	push = function(bla) {
+		if (array_length(dialogs) == 0) {
+			current = bla;
+			index = 0;
+			
+			step = step_time;
+			if (bla.stack[0][BLABBER.TIME] == 0) step = step_instant;
+		}
+		
+		array_push(dialogs, bla);
+	}
+	
+	static step_instant = function() {
+		if (current == pointer_null) return;
+		var element = current.stack[index];
+		
+		var n = (element[BLABBER.TYPE] == BLABBER.TEXT) ? string_length(element[BLABBER_TEXT.TEXT]) : 1;
+		repeat (n) if (advance(element)) break;	//fuck you
+	}
+	
+	static step_time = function() {
+		if (current == pointer_null) return;
+		var element = current.stack[index];
+		
+		time += (delta_time / 1000);	//miliseconds
+		
+		var n = floor(time div element[BLABBER.TIME]);
+		repeat (n) if (advance(element)) break;	//fuck you
+		
 	}
 	
 	static render = function() {
-		for(var i = 0; i < array_length(vertex); i++) {
-			var v = vertex[i];
-			
-			vertex_submit(v.buffer, pr_trianglelist, v.texture);
-		}
-	}
-	
-	static cleanup = function() {
-		for(var i = 0; i < array_length(vertex); i++) {
-			vertex_delete_buffer(vertex[i].buffer);	
-		}
+		var l = array_length(vertex);
+		var i = 0;
 		
-		vertex_delete_buffer(temporary);
+		repeat (l) vertex_submit(vertex[i].buffer, pr_trianglelist, vertex[i].texture); i++;
 	}
 }
 
-enum BLABBER { TYPE, TEXT, SPRITE, NEW_LINE, REWRITE };
-enum BLABBER_TEXT { TYPE, TEXT, TIME, COLOR, ALPHA, FONT, FLAGS, LENGTH, BUFFER };
+enum BLABBER { TYPE, TIME, START , TEXT, SPRITE, NEW_LINE, REWRITE };
+enum BLABBER_TEXT { TYPE, TIME, START, TEXT, COLOR, ALPHA, FONT, FLAGS, LENGTH, BUFFER};
+enum BLABBER_REWRITE { TYPE, TIME, START, TEXT };
 
-function Blabber(Flags = 0, onCharacter = undefined, w, h) constructor {
+function Chatter(Flags = 0, onCharacter = undefined, w, h) constructor {
 	stack = [];
+	
 	//events
 	
 	//execute a function on character change
@@ -155,9 +196,9 @@ function Blabber(Flags = 0, onCharacter = undefined, w, h) constructor {
 		new_line - pointer_null
 	*/
 	//flags - the flags variable that was passed
-	self.onCharacter = onCharacter ?? function(type, char, flags) {
-		show_debug_message("Type - " + string(type) + " / Char - " + string(char) + " / Flags - " + string(flags));
-	};
+	self.onCharacter = onCharacter ?? function(type, char, flags) {};
+	
+	//prefabs
 	
 	//text - the string to render
 	//time - the time each chararacter is give before a new one is rendered (in ms)
@@ -165,26 +206,27 @@ function Blabber(Flags = 0, onCharacter = undefined, w, h) constructor {
 	//alpha - the opacity of the text
 	static text = function(text, time = 1, color = c_white, alpha = 1, font = FALLBACK_FONT, flags = 0) {
 		array_push(stack, [
-			BLABBER.TEXT,
-			text, time,
+			BLABBER.TEXT, time, 0,
+			text,
 			color, alpha,
 			font,
 			flags,
 			string_length(text),
 			pointer_null,
+			0
 		])
 	}
 	
 	static sprite = function(index, image, time = 0, color = c_white, alpha = 1) {
-		array_push(stack, [BLABBER.SPRITE, index, image, time, color, alpha]);
+		array_push(stack, [BLABBER.SPRITE, time, 0, index, image, color, alpha]);
 	};
 	
-	static rewrite = function(text, time) {
-		array_push(stack, [BLABBER.REWRITE, text, time]);
+	static rewrite = function(text, time = 0) {
+		array_push(stack, [BLABBER.REWRITE, time, 0, text]);
 	}
 	
 	//move the cursor to a new line	
-	static new_line = function() {
-		array_push(stack, [BLABBER.NEW_LINE]);
+	static new_line = function(time = 0) {
+		array_push(stack, [BLABBER.NEW_LINE, time, 0]);
 	}
 }
