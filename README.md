@@ -2,7 +2,7 @@
 
 Blabber is a dialog system for GameMaker.
 
-Blabber only handles text rendering. To build dialog boxes or other UI around it you would have to render it to a surface or use something else.
+Blabber only handles text rendering. To build dialog boxes or other UI around it you would have to render it to a surface.
 
 <img width="324" height="122" alt="blabber_logo" src="https://raw.githubusercontent.com/zelenqk/Blabber/main/blabber_showcase.apng" />
 
