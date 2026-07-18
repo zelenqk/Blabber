@@ -4,6 +4,8 @@ Blabber is a dialog system for GameMaker.
 
 Blabber only handles text rendering. To build dialog boxes or other UI around it you would have to render it to a surface or use something else.
 
+<img width="324" height="122" alt="blabber_logo" src="https://raw.githubusercontent.com/zelenqk/Blabber/main/blabber_showcase.apng" />
+
 ## Installation
 
 Download the latest release, then in the GameMaker IDE go to `Tools > Import Local Package`.
