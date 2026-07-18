@@ -42,7 +42,6 @@ function Blabber(w = display_get_gui_width()) constructor {
 	
 	//internal methods
 	static increment = function() {
-		if (current.stack[index][BLABBER.TYPE] == BLABBER.TEXT) previous = current.stack[index];
 		index++;
 		length = 1;
 		
@@ -62,7 +61,7 @@ function Blabber(w = display_get_gui_width()) constructor {
 			if (buf == -1) {
 				buf = new Vertex(font);
 				array_push(vertex, buf);
-			}
+			}else buf = vertex[buf];
 			
 			element[BLABBER_TEXT.BUFFER] = buf;
 			element[BLABBER_TEXT.START] = buf.length;
@@ -101,8 +100,49 @@ function Blabber(w = display_get_gui_width()) constructor {
 			);
 			
 			cursor.x += glyph.shift;
+			cursor.height = max(cursor.height, glyph.h);
 			return (length > element[BLABBER_TEXT.LENGTH]);
+		case BLABBER.NEW_LINE:
+			cursor.x = 0;
+			cursor.y += cursor.height;
+			
+			cursor.width = 0;
+			cursor.height = 0;
+			return true;
+		case BLABBER.BACKSPACE:
+			if (element[BLABBER_BACKSPACE.AMOUNT]-- <= 0) {
+				 array_delete(current.stack, index--, 1);
+				 return true;
+			}
+			
+			var previous = current.stack[index - 1];
+			switch (previous[BLABBER.TYPE]) {
+			case BLABBER.TEXT:	
+				var pos = previous[BLABBER_TEXT.LENGTH]--;
+				var char = string_char_at(previous[BLABBER_TEXT.TEXT], pos);
+				var info = font_get_info(previous[BLABBER_TEXT.FONT]);
+				var glyph = info.glyphs[$ char];
+				
+				cursor.x -= glyph.shift;
+				remove_quad(previous[BLABBER_TEXT.BUFFER], previous[BLABBER_TEXT.START] + pos - 1);
+				
+				if (previous[BLABBER_TEXT.LENGTH] == 0) {
+					index--;
+					array_delete(current.stack, index, 1);
+					return false;
+				}
+				
+				return false;
+			default:
+				array_delete(current.stack, index - 1, 1);
+				return false;
+			}
+			return false;
+		case BLABBER.WAIT:
+			return true;
 		}
+		
+		return true;
 	}
 	
 	//methods
@@ -164,13 +204,14 @@ function Blabber(w = display_get_gui_width()) constructor {
 	}
 }
 
-enum BLABBER { TYPE, TIME, TEXT, NEW_LINE };
+enum BLABBER { TYPE, TIME, TEXT, NEW_LINE, WAIT, BACKSPACE };
 enum BLABBER_TEXT { TYPE, TIME, TEXT, FONT, COLOR, ALPHA, WIDTH, HEIGHT, BUFFER, START, LENGTH };
+enum BLABBER_BACKSPACE { TYPE, TIME, AMOUNT };
 
 function Chatter() constructor {
 	stack = [];
 	
-	static text = function(text, time = 0, font = FALLBACK_FONT, color = c_white, alpha = 1) {
+	static text = function(text, time = 0, color = c_white, alpha = 1, font = FALLBACK_FONT) {
 		var element = array_create(BLABBER_TEXT.LENGTH, BLABBER.TEXT);
 		element[BLABBER_TEXT.TIME] = time;
 		
@@ -186,7 +227,6 @@ function Chatter() constructor {
 		element[BLABBER_TEXT.WIDTH] = 0;
 		element[BLABBER_TEXT.HEIGHT] = 0;
 		
-		
 		var info = font_get_info(font);
 		
 		var i = 0;
@@ -199,5 +239,16 @@ function Chatter() constructor {
 		}
 		
 		array_push(stack, element);
+	}
+	
+	static new_line = function(time = 0) {
+		array_push(stack, [BLABBER.NEW_LINE, time])	
+	}
+	
+	static backspace = function(amount, time = 1) {
+		array_push(stack, [BLABBER.BACKSPACE, time, amount]);
+	}
+	static wait = function(time = 1) {
+		array_push(stack, [BLABBER.WAIT, time]);
 	}
 }
