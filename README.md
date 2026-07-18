@@ -6,7 +6,7 @@ Blabber only handles text rendering. To build dialog boxes or other UI around it
 
 <img width="324" height="122" alt="blabber_logo" src="https://raw.githubusercontent.com/zelenqk/Blabber/main/blabber_showcase.apng" />
 
-Any questions? add me on discord @zelenqk or [check the wiki](https://github.com/zelenqk/Blabber/wiki)
+Any questions? Join my [discord server](https://discord.gg/3Vgp3VZ6wW) or [check the wiki](https://github.com/zelenqk/Blabber/wiki)
 
 ## Installation
 
