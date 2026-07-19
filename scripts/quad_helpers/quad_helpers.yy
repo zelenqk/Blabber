@@ -5,8 +5,8 @@
   "isDnD":false,
   "name":"quad_helpers",
   "parent":{
-    "name":"Util",
-    "path":"folders/Blabber/Util.yy",
+    "name":"internal utilities",
+    "path":"folders/Blabber/internal utilities.yy",
   },
   "resourceType":"GMScript",
   "resourceVersion":"2.0",

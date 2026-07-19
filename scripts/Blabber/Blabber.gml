@@ -82,7 +82,7 @@ function Blabber(w = display_get_gui_width()) constructor {
 			var th = buffer.height;
 			
 			if (cursor.x >= width or cursor.x + glyph.shift > width) {
-				array_insert(current.stack, index + 1, [BLABBER.NEWLINE, 0, [cursor.x, cursor.y]]);
+				array_insert(current.stack, index + 1, [BLABBER.NEWLINE, 0, [cursor.x, cursor.y], true]);
 				advance(current.stack[index + 1]);
 			}
 			
@@ -134,25 +134,77 @@ function Blabber(w = display_get_gui_width()) constructor {
 				remove_quad(previous[BLABBER_TEXT.BUFFER], previous[BLABBER_TEXT.START] + pos - 1);
 				
 				if (previous[BLABBER_TEXT.LENGTH] == 0) {
-					index--;
-					array_delete(current.stack, index, 1);
+					array_delete(current.stack, index-- - 1, 1);
 					return false;
 				}
 				
 				return false;
 			case BLABBER.NEWLINE:
+				if (previous[BLABBER_NEWLINE.DYNAMIC]) element[BLABBER_BACKSPACE.AMOUNT]++;
+				
 				cursor.x = previous[BLABBER_NEWLINE.PREVIOUS][0];
 				cursor.y = previous[BLABBER_NEWLINE.PREVIOUS][1];
 				
 				array_delete(current.stack, index-- - 1, 1);
 				return false;
+			
+			//cursors
+			case BLABBER.ICURSOR_POS:
+			case BLABBER.CURSOR_POS:
+				cursor.x = previous[BLABBER_CURSOR_POS.POS_X];
+				cursor.y = previous[BLABBER_CURSOR_POS.POS_Y];
+				array_delete(current.stack, index-- - 1, 1);
+				return false;
+			case BLABBER.CURSOR_X:
+			case BLABBER.ICURSOR_X:
+				cursor.x = previous[BLABBER_CURSOR.POS];
+				array_delete(current.stack, index-- - 1, 1);
+				return false;
+			case BLABBER.CURSOR_Y:
+			case BLABBER.ICURSOR_Y:
+				cursor.y = previous[BLABBER_CURSOR.POS];
+				array_delete(current.stack, index-- - 1, 1);
+				return false;
+			
 			default:
 				array_delete(current.stack, index-- - 1, 1);
 				return false;
 			}
+			
 			return false;
 		case BLABBER.WAIT:
-			array_delete(current.stack, index-- - 1, 1)
+			array_delete(current.stack, index--, 1);
+			test = element;
+			return true;
+			
+		//cursor
+		case BLABBER.CURSOR_POS:
+			element[BLABBER_CURSOR_POS.PREVIOUS][0] = cursor.x;
+			element[BLABBER_CURSOR_POS.PREVIOUS][1] = cursor.y;
+			cursor.x = element[BLABBER_CURSOR_POS.POS_X];
+			cursor.y = element[BLABBER_CURSOR_POS.POS_Y];
+			return true;
+		case BLABBER.ICURSOR_POS:
+			element[BLABBER_CURSOR_POS.PREVIOUS][0] = cursor.x;
+			element[BLABBER_CURSOR_POS.PREVIOUS][1] = cursor.y;
+			cursor.x += element[BLABBER_CURSOR_POS.POS_X];
+			cursor.y += element[BLABBER_CURSOR_POS.POS_Y];
+			return true;
+		case BLABBER.CURSOR_X:
+			element[BLABBER_CURSOR.PREVIOUS] = cursor.x;
+			cursor.x = element[BLABBER_CURSOR.POS];
+			return true;
+		case BLABBER.CURSOR_Y:
+			element[BLABBER_CURSOR.PREVIOUS] = cursor.y;
+			cursor.y = element[BLABBER_CURSOR.POS];
+			return true;
+		case BLABBER.ICURSOR_X:
+			element[BLABBER_CURSOR.PREVIOUS] = cursor.x;
+			cursor.x += element[BLABBER_CURSOR.POS];
+			return true;
+		case BLABBER.ICURSOR_Y:
+			element[BLABBER_CURSOR.PREVIOUS] = cursor.y;
+			cursor.y += element[BLABBER_CURSOR.POS];
 			return true;
 		}
 		
@@ -221,10 +273,13 @@ function Blabber(w = display_get_gui_width()) constructor {
 	}
 }
 
-enum BLABBER { TYPE, TIME, TEXT, NEWLINE, WAIT, BACKSPACE };
+enum BLABBER { TYPE, TIME, TEXT, NEWLINE, WAIT, BACKSPACE, CURSOR_X, CURSOR_Y, CURSOR_POS, ICURSOR_X, ICURSOR_Y, ICURSOR_POS };
 enum BLABBER_TEXT { TYPE, TIME, TEXT, FONT, COLOR, ALPHA, WIDTH, HEIGHT, BUFFER, START, LENGTH };
-enum BLABBER_NEWLINE { TYPE, TIME, PREVIOUS };
+enum BLABBER_NEWLINE { TYPE, TIME, PREVIOUS, DYNAMIC };
 enum BLABBER_BACKSPACE { TYPE, TIME, AMOUNT };
+
+enum BLABBER_CURSOR {TYPE, TIME, POS, PREVIOUS};
+enum BLABBER_CURSOR_POS {TYPE, TIME, POS_X, POS_Y, PREVIOUS};
 
 function Chatter() constructor {
 	stack = [];
@@ -260,13 +315,39 @@ function Chatter() constructor {
 	}
 	
 	static new_line = function(time = 0) {
-		array_push(stack, [BLABBER.NEWLINE, time, [0, 0]])	
+		array_push(stack, [BLABBER.NEWLINE, time, [0, 0], false])	
 	}
 	
 	static backspace = function(amount, time = 1) {
 		array_push(stack, [BLABBER.BACKSPACE, time, amount]);
 	}
+	
 	static wait = function(time = 1) {
 		array_push(stack, [BLABBER.WAIT, time]);
+	}
+	
+	//cursor
+	static set_cursor_pos = function(X, Y, time = 0) {
+		array_push(stack, [BLABBER.CURSOR_POS, time, X, Y, [0, 0]]);
+	}
+	
+	static set_cursor_x = function(X, time = 0) {
+		array_push(stack, [BLABBER.CURSOR_X, time, X, 0]);
+	}
+	
+	static set_cursor_y = function(Y, time = 0) {
+		array_push(stack, [BLABBER.CURSOR_Y, time, Y, 0]);
+	}
+	
+	static set_cursor_pos = function(X, Y, time = 0) {
+		array_push(stack, [BLABBER.ICURSOR_POS, time, X, Y, [0, 0]]);
+	}
+	
+	static increment_cursor_x = function(X, time = 0) {
+		array_push(stack, [BLABBER.ICURSOR_X, time, X, 0]);
+	}
+	
+	static increment_cursor_y = function(Y, time = 0) {
+		array_push(stack, [BLABBER.ICURSOR_Y, time, Y, 0]);
 	}
 }
