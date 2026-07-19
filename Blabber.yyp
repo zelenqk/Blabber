@@ -27,6 +27,7 @@
     {"id":{"name":"fntDejaVu_Sans","path":"fonts/fntDejaVu_Sans/fntDejaVu_Sans.yy",},},
     {"id":{"name":"oExample","path":"objects/oExample/oExample.yy",},},
     {"id":{"name":"rmExample","path":"rooms/rmExample/rmExample.yy",},},
+    {"id":{"name":"blabber_handle_backspace","path":"scripts/blabber_handle_backspace/blabber_handle_backspace.yy",},},
     {"id":{"name":"Blabber","path":"scripts/Blabber/Blabber.yy",},},
     {"id":{"name":"quad_helpers","path":"scripts/quad_helpers/quad_helpers.yy",},},
   ],

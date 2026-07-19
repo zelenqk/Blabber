@@ -39,6 +39,17 @@ function Blabber(w = display_get_gui_width()) constructor {
 		vertex_end(buffer);
 	}
 	
+	static grab_cursor = function() {
+		return [cursor.x, cursor.y, cursor.width, cursor.height];	
+	}
+	
+	static set_cursor = function(c) {
+		cursor.x = c[0];
+		cursor.y = c[1];
+		cursor.width	= c[2];
+		cursor.height	= c[3];
+	}
+	
 	//internal methods
 	static increment = function() {
 		index++;
@@ -82,8 +93,12 @@ function Blabber(w = display_get_gui_width()) constructor {
 			var th = buffer.height;
 			
 			if (cursor.x >= width or cursor.x + glyph.shift > width) {
-				array_insert(current.stack, index + 1, [BLABBER.NEWLINE, 0, [cursor.x, cursor.y], true]);
-				advance(current.stack[index + 1]);
+				array_insert(current.stack, index + 1, [BLABBER.NEWLINE, 0, grab_cursor(), true, element[BLABBER_TEXT.LENGTH] - (length - 1)]);
+				cursor.x = 0;
+				cursor.y += cursor.height;
+				
+				cursor.width = 0;
+				cursor.height = 0;
 			}
 			
 			append_quad(
@@ -107,6 +122,8 @@ function Blabber(w = display_get_gui_width()) constructor {
 			cursor.height = max(cursor.height, glyph.h);
 			return (length > element[BLABBER_TEXT.LENGTH]);
 		case BLABBER.NEWLINE:
+			if (element[BLABBER_NEWLINE.DYNAMIC]) return true;
+			
 			element[BLABBER_NEWLINE.PREVIOUS][0] = cursor.x;
 			element[BLABBER_NEWLINE.PREVIOUS][1] = cursor.y;
 			
@@ -117,61 +134,8 @@ function Blabber(w = display_get_gui_width()) constructor {
 			cursor.height = 0;
 			return true;
 		case BLABBER.BACKSPACE:
-			if (element[BLABBER_BACKSPACE.AMOUNT]-- <= 0) {
-				 array_delete(current.stack, index--, 1);
-				 return true;
-			}
-			
 			var previous = current.stack[index - 1];
-			switch (previous[BLABBER.TYPE]) {
-			case BLABBER.TEXT:	
-				var pos = previous[BLABBER_TEXT.LENGTH]--;
-				var char = string_char_at(previous[BLABBER_TEXT.TEXT], pos);
-				var info = font_get_info(previous[BLABBER_TEXT.FONT]);
-				var glyph = info.glyphs[$ char];
-				
-				cursor.x -= glyph.shift;
-				remove_quad(previous[BLABBER_TEXT.BUFFER], previous[BLABBER_TEXT.START] + pos - 1);
-				
-				if (previous[BLABBER_TEXT.LENGTH] == 0) {
-					array_delete(current.stack, index-- - 1, 1);
-					return false;
-				}
-				
-				return false;
-			case BLABBER.NEWLINE:
-				if (previous[BLABBER_NEWLINE.DYNAMIC]) element[BLABBER_BACKSPACE.AMOUNT]++;
-				
-				cursor.x = previous[BLABBER_NEWLINE.PREVIOUS][0];
-				cursor.y = previous[BLABBER_NEWLINE.PREVIOUS][1];
-				
-				array_delete(current.stack, index-- - 1, 1);
-				return false;
-			
-			//cursors
-			case BLABBER.ICURSOR_POS:
-			case BLABBER.CURSOR_POS:
-				cursor.x = previous[BLABBER_CURSOR_POS.POS_X];
-				cursor.y = previous[BLABBER_CURSOR_POS.POS_Y];
-				array_delete(current.stack, index-- - 1, 1);
-				return false;
-			case BLABBER.CURSOR_X:
-			case BLABBER.ICURSOR_X:
-				cursor.x = previous[BLABBER_CURSOR.POS];
-				array_delete(current.stack, index-- - 1, 1);
-				return false;
-			case BLABBER.CURSOR_Y:
-			case BLABBER.ICURSOR_Y:
-				cursor.y = previous[BLABBER_CURSOR.POS];
-				array_delete(current.stack, index-- - 1, 1);
-				return false;
-			
-			default:
-				array_delete(current.stack, index-- - 1, 1);
-				return false;
-			}
-			
-			return false;
+			return blabber_handle_backspace(element, previous);
 		case BLABBER.WAIT:
 			array_delete(current.stack, index--, 1);
 			test = element;
@@ -179,31 +143,29 @@ function Blabber(w = display_get_gui_width()) constructor {
 			
 		//cursor
 		case BLABBER.CURSOR_POS:
-			element[BLABBER_CURSOR_POS.PREVIOUS][0] = cursor.x;
-			element[BLABBER_CURSOR_POS.PREVIOUS][1] = cursor.y;
-			cursor.x = element[BLABBER_CURSOR_POS.POS_X];
-			cursor.y = element[BLABBER_CURSOR_POS.POS_Y];
+			element[BLABBER_CURSOR.PREVIOUS] = grab_cursor();
+			cursor.x = element[BLABBER_CURSOR.POS][0];
+			cursor.y = element[BLABBER_CURSOR.POS][1];
 			return true;
 		case BLABBER.ICURSOR_POS:
-			element[BLABBER_CURSOR_POS.PREVIOUS][0] = cursor.x;
-			element[BLABBER_CURSOR_POS.PREVIOUS][1] = cursor.y;
-			cursor.x += element[BLABBER_CURSOR_POS.POS_X];
-			cursor.y += element[BLABBER_CURSOR_POS.POS_Y];
+			element[BLABBER_CURSOR.PREVIOUS] = grab_cursor();
+			cursor.x += element[BLABBER_CURSOR.POS][0];
+			cursor.y += element[BLABBER_CURSOR.POS][1];
 			return true;
 		case BLABBER.CURSOR_X:
-			element[BLABBER_CURSOR.PREVIOUS] = cursor.x;
+			element[BLABBER_CURSOR.PREVIOUS] = grab_cursor();
 			cursor.x = element[BLABBER_CURSOR.POS];
 			return true;
 		case BLABBER.CURSOR_Y:
-			element[BLABBER_CURSOR.PREVIOUS] = cursor.y;
+			element[BLABBER_CURSOR.PREVIOUS] = grab_cursor();
 			cursor.y = element[BLABBER_CURSOR.POS];
 			return true;
 		case BLABBER.ICURSOR_X:
-			element[BLABBER_CURSOR.PREVIOUS] = cursor.x;
+			element[BLABBER_CURSOR.PREVIOUS] = grab_cursor();
 			cursor.x += element[BLABBER_CURSOR.POS];
 			return true;
 		case BLABBER.ICURSOR_Y:
-			element[BLABBER_CURSOR.PREVIOUS] = cursor.y;
+			element[BLABBER_CURSOR.PREVIOUS] = grab_cursor();
 			cursor.y += element[BLABBER_CURSOR.POS];
 			return true;
 		}
@@ -274,12 +236,11 @@ function Blabber(w = display_get_gui_width()) constructor {
 }
 
 enum BLABBER { TYPE, TIME, TEXT, NEWLINE, WAIT, BACKSPACE, CURSOR_X, CURSOR_Y, CURSOR_POS, ICURSOR_X, ICURSOR_Y, ICURSOR_POS };
-enum BLABBER_TEXT { TYPE, TIME, TEXT, FONT, COLOR, ALPHA, WIDTH, HEIGHT, BUFFER, START, LENGTH };
-enum BLABBER_NEWLINE { TYPE, TIME, PREVIOUS, DYNAMIC };
+enum BLABBER_TEXT { TYPE, TIME, TEXT, FONT, COLOR, ALPHA, BUFFER, START, LENGTH };
+enum BLABBER_NEWLINE { TYPE, TIME, PREVIOUS, DYNAMIC, LENGTH};
 enum BLABBER_BACKSPACE { TYPE, TIME, AMOUNT };
 
 enum BLABBER_CURSOR {TYPE, TIME, POS, PREVIOUS};
-enum BLABBER_CURSOR_POS {TYPE, TIME, POS_X, POS_Y, PREVIOUS};
 
 function Chatter() constructor {
 	stack = [];
@@ -297,25 +258,11 @@ function Chatter() constructor {
 		element[BLABBER_TEXT.COLOR] = color;
 		element[BLABBER_TEXT.ALPHA] = alpha;
 
-		element[BLABBER_TEXT.WIDTH] = 0;
-		element[BLABBER_TEXT.HEIGHT] = 0;
-		
-		var info = font_get_info(font);
-		
-		var i = 0;
-		repeat (length) {
-			var char = string_char_at(text, i++);
-			var glyph = info.glyphs[$ char];
-			
-			element[BLABBER_TEXT.WIDTH] += glyph.shift;
-			element[BLABBER_TEXT.HEIGHT] = max(glyph.h, element[BLABBER_TEXT.HEIGHT]);
-		}
-		
 		array_push(stack, element);
 	}
 	
 	static new_line = function(time = 0) {
-		array_push(stack, [BLABBER.NEWLINE, time, [0, 0], false])	
+		array_push(stack, [BLABBER.NEWLINE, time, [0, 0, 0, 0], false, 0])	
 	}
 	
 	static backspace = function(amount, time = 1) {
