@@ -1,6 +1,5 @@
 globalvar BLABBER_VERTEX_FORMAT, FALLBACK_FONT;
 
-
 vertex_format_begin();
 vertex_format_add_position();
 vertex_format_add_color();
@@ -82,6 +81,11 @@ function Blabber(w = display_get_gui_width()) constructor {
 			var tw = buffer.width;
 			var th = buffer.height;
 			
+			if (cursor.x >= width or cursor.x + glyph.shift > width) {
+				array_insert(current.stack, index + 1, [BLABBER.NEWLINE, 0, [cursor.x, cursor.y]]);
+				advance(current.stack[index + 1]);
+			}
+			
 			append_quad(
 				buffer,
 				buffer.length++,
@@ -102,7 +106,10 @@ function Blabber(w = display_get_gui_width()) constructor {
 			cursor.x += glyph.shift;
 			cursor.height = max(cursor.height, glyph.h);
 			return (length > element[BLABBER_TEXT.LENGTH]);
-		case BLABBER.NEW_LINE:
+		case BLABBER.NEWLINE:
+			element[BLABBER_NEWLINE.PREVIOUS][0] = cursor.x;
+			element[BLABBER_NEWLINE.PREVIOUS][1] = cursor.y;
+			
 			cursor.x = 0;
 			cursor.y += cursor.height;
 			
@@ -133,12 +140,19 @@ function Blabber(w = display_get_gui_width()) constructor {
 				}
 				
 				return false;
+			case BLABBER.NEWLINE:
+				cursor.x = previous[BLABBER_NEWLINE.PREVIOUS][0];
+				cursor.y = previous[BLABBER_NEWLINE.PREVIOUS][1];
+				
+				array_delete(current.stack, index-- - 1, 1);
+				return false;
 			default:
-				array_delete(current.stack, index - 1, 1);
+				array_delete(current.stack, index-- - 1, 1);
 				return false;
 			}
 			return false;
 		case BLABBER.WAIT:
+			array_delete(current.stack, index-- - 1, 1)
 			return true;
 		}
 		
@@ -175,10 +189,11 @@ function Blabber(w = display_get_gui_width()) constructor {
 			element[BLABBER_TEXT.START] = buf.length;
 		}
 	}
-	
-	static step = function() {
+	///@function step
+	///@argument speed
+	static step = function(spd = 1) {
 		if (current == pointer_null) return;
-		time += (delta_time / 1000);
+		time += (delta_time / 1000) * spd;
 	
 		while (true) {
 			var element = current.stack[index];
@@ -189,10 +204,12 @@ function Blabber(w = display_get_gui_width()) constructor {
 		}
 	}
 	
-	static render = function() {
+	static render = function(dbg = false) {
 		for(var i = 0; i < array_length(vertex); i++) {
 			vertex_submit(vertex[i].buffer, pr_trianglelist, vertex[i].texture);	
 		}
+		
+		if (dbg) draw_line(cursor.x, cursor.y + cursor.height, cursor.x + 12, cursor.y + cursor.height);
 	}
 	
 	static cleanup = function() {
@@ -204,8 +221,9 @@ function Blabber(w = display_get_gui_width()) constructor {
 	}
 }
 
-enum BLABBER { TYPE, TIME, TEXT, NEW_LINE, WAIT, BACKSPACE };
+enum BLABBER { TYPE, TIME, TEXT, NEWLINE, WAIT, BACKSPACE };
 enum BLABBER_TEXT { TYPE, TIME, TEXT, FONT, COLOR, ALPHA, WIDTH, HEIGHT, BUFFER, START, LENGTH };
+enum BLABBER_NEWLINE { TYPE, TIME, PREVIOUS };
 enum BLABBER_BACKSPACE { TYPE, TIME, AMOUNT };
 
 function Chatter() constructor {
@@ -242,7 +260,7 @@ function Chatter() constructor {
 	}
 	
 	static new_line = function(time = 0) {
-		array_push(stack, [BLABBER.NEW_LINE, time])	
+		array_push(stack, [BLABBER.NEWLINE, time, [0, 0]])	
 	}
 	
 	static backspace = function(amount, time = 1) {

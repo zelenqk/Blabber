@@ -1,1 +1,1 @@
-dialog.render();
+dialog.render(true);
