@@ -157,7 +157,6 @@ function Blabber(w = display_get_gui_width()) constructor {
 				cursor.height = 0;
 			}
 			
-			show_message(element[BLABBER_SPRITE.UV]);
 			append_quad(
 				buffer,
 				buffer.length++,
