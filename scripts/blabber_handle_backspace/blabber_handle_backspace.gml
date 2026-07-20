@@ -12,6 +12,7 @@ function blabber_handle_backspace(element, previous){
 		var glyph = info.glyphs[$ char];
 		
 		cursor.x -= glyph.shift;
+		cursor.height = min(cursor.height, glyph.h);
 		remove_quad(previous[BLABBER_TEXT.BUFFER], previous[BLABBER_TEXT.START] + pos - 1);
 		
 		if (previous[BLABBER_TEXT.LENGTH] == 0) {
@@ -19,6 +20,14 @@ function blabber_handle_backspace(element, previous){
 			return false;
 		}
 		
+		return false;
+	case BLABBER.SPRITE:
+		var scale = cursor.height / previous[BLABBER_SPRITE.HEIGHT];
+		
+		cursor.x -= previous[BLABBER_SPRITE.WIDTH] * scale;
+		remove_quad(previous[BLABBER_SPRITE.BUFFER], previous[BLABBER_SPRITE.START]);
+		
+		array_delete(current.stack, index-- - 1, 1);
 		return false;
 	case BLABBER.NEWLINE:
 		if (previous[BLABBER_NEWLINE.LENGTH] == 0) {

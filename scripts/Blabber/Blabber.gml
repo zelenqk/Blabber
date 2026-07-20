@@ -25,9 +25,8 @@ function Blabber(w = display_get_gui_width()) constructor {
 	cursor = {x: 0, y: 0, width: 0, height: 0};
 	
 	//internal classes
-	static Vertex = function(fnt) constructor {
-		font = fnt;
-		texture = font_get_texture(font);
+	static Vertex = function(tex) constructor {
+		texture = tex;
 		
 		buffer = vertex_create_buffer();
 		length = 0;
@@ -39,6 +38,7 @@ function Blabber(w = display_get_gui_width()) constructor {
 		vertex_end(buffer);
 	}
 	
+	//internal methods
 	static grab_cursor = function() {
 		return [cursor.x, cursor.y, cursor.width, cursor.height];	
 	}
@@ -50,7 +50,6 @@ function Blabber(w = display_get_gui_width()) constructor {
 		cursor.height	= c[3];
 	}
 	
-	//internal methods
 	static increment = function() {
 		index++;
 		length = 1;
@@ -61,20 +60,37 @@ function Blabber(w = display_get_gui_width()) constructor {
 		}
 		
 		var element = current.stack[index];
-		if (element[BLABBER.TYPE] == BLABBER.TEXT) {
-			font = element[BLABBER_TEXT.FONT];
+		switch (element[BLABBER.TYPE]) {
+		case BLABBER.TEXT:
+			texture = font_get_texture(element[BLABBER_TEXT.FONT]);
 			
 			var buf = array_find_index(vertex, function(e) {
-				return (e.font == font);
+				return (e.texture == texture);
 			});
 			
 			if (buf == -1) {
-				buf = new Vertex(font);
+				buf = new Vertex(texture);
 				array_push(vertex, buf);
 			}else buf = vertex[buf];
 			
 			element[BLABBER_TEXT.BUFFER] = buf;
 			element[BLABBER_TEXT.START] = buf.length;
+			break;
+		case BLABBER.SPRITE:
+			texture = font_get_texture(element[BLABBER_TEXT.FONT]);
+			
+			var buf = array_find_index(vertex, function(e) {
+				return (e.texture == texture);
+			});
+			
+			if (buf == -1) {
+				buf = new Vertex(texture);
+				array_push(vertex, buf);
+			}else buf = vertex[buf];
+			
+			element[BLABBER_SPRITE.BUFFER] = buf;
+			element[BLABBER_SPRITE.START] = buf.length;
+			break;
 		}
 		
 		while (element[BLABBER.TIME] == 0) if (advance(element)) return increment();
@@ -118,9 +134,48 @@ function Blabber(w = display_get_gui_width()) constructor {
 				element[BLABBER_TEXT.ALPHA],
 			);
 			
+			if (element[BLABBER_TEXT.ONCHAR] != undefined) element[BLABBER_TEXT.ONCHAR](char, length, element[BLABBER_TEXT.TEXT], cursor);
+			
 			cursor.x += glyph.shift;
 			cursor.height = max(cursor.height, glyph.h);
 			return (length > element[BLABBER_TEXT.LENGTH]);
+		case BLABBER.SPRITE:
+			var buffer = element[BLABBER_SPRITE.BUFFER];
+			var tw = buffer.width;
+			var th = buffer.height;
+			
+			var scale = cursor.height / element[BLABBER_SPRITE.HEIGHT];
+			var w = element[BLABBER_SPRITE.WIDTH] * scale;
+			var h = element[BLABBER_SPRITE.HEIGHT] * scale;
+			
+			if (cursor.x >= width or cursor.x + w > width) {
+				array_insert(current.stack, index + 1, [BLABBER.NEWLINE, 0, grab_cursor(), true, 1]);
+				cursor.x = 0;
+				cursor.y += cursor.height;
+				
+				cursor.width = 0;
+				cursor.height = 0;
+			}
+			
+			show_message(element[BLABBER_SPRITE.UV]);
+			append_quad(
+				buffer,
+				buffer.length++,
+				
+				cursor.x,
+				cursor.y,
+				w, h,
+				
+				element[BLABBER_SPRITE.UV][0],
+				element[BLABBER_SPRITE.UV][1],
+				element[BLABBER_SPRITE.UV][2] - element[BLABBER_SPRITE.UV][0],
+				element[BLABBER_SPRITE.UV][3] - element[BLABBER_SPRITE.UV][1],
+				
+				element[BLABBER_TEXT.COLOR],
+				element[BLABBER_TEXT.ALPHA],
+			);
+			
+			return true;
 		case BLABBER.NEWLINE:
 			if (element[BLABBER_NEWLINE.DYNAMIC]) return true;
 			
@@ -183,31 +238,18 @@ function Blabber(w = display_get_gui_width()) constructor {
 	}
 	
 	static push = function(bla) {
-		if (array_length(dialogs) == 0) current = bla;
 		array_push(dialogs, bla);
 		
-		var element = bla.stack[0];
-		if (element[BLABBER.TYPE] == BLABBER.TEXT) {
-			font = element[BLABBER_TEXT.FONT];
+		if (current == pointer_null) {
+			current = bla;
+			index = -1;
 			
-			var buf = array_find_index(vertex, function(e) {
-				return (e.font == font);
-			});
-			
-			if (buf == -1) {
-				buf = new Vertex(font);
-				array_push(vertex, buf);
-			}
-			
-			element[BLABBER_TEXT.BUFFER] = buf;
-			element[BLABBER_TEXT.START] = buf.length;
+			increment();
 		}
 	}
-	///@function step
-	///@argument speed
-	static step = function(spd = 1) {
+	static step = function(modifier = 1) {
 		if (current == pointer_null) return;
-		time += (delta_time / 1000) * spd;
+		time += (delta_time / 1000) * modifier;
 	
 		while (true) {
 			var element = current.stack[index];
@@ -235,8 +277,9 @@ function Blabber(w = display_get_gui_width()) constructor {
 	}
 }
 
-enum BLABBER { TYPE, TIME, TEXT, NEWLINE, WAIT, BACKSPACE, CURSOR_X, CURSOR_Y, CURSOR_POS, ICURSOR_X, ICURSOR_Y, ICURSOR_POS };
-enum BLABBER_TEXT { TYPE, TIME, TEXT, FONT, COLOR, ALPHA, BUFFER, START, LENGTH };
+enum BLABBER { TYPE, TIME, TEXT, NEWLINE, WAIT, BACKSPACE, SPRITE, CURSOR_X, CURSOR_Y, CURSOR_POS, ICURSOR_X, ICURSOR_Y, ICURSOR_POS };
+enum BLABBER_TEXT { TYPE, TIME, TEXT, FONT, COLOR, ALPHA, ONCHAR, BUFFER, START, LENGTH };
+enum BLABBER_SPRITE { TYPE, TIME, INDEX, IMAGE, COLOR, ALPHA, WIDTH, HEIGHT, UV, BUFFER, START };
 enum BLABBER_NEWLINE { TYPE, TIME, PREVIOUS, DYNAMIC, LENGTH};
 enum BLABBER_BACKSPACE { TYPE, TIME, AMOUNT };
 
@@ -245,7 +288,7 @@ enum BLABBER_CURSOR {TYPE, TIME, POS, PREVIOUS};
 function Chatter() constructor {
 	stack = [];
 	
-	static text = function(text, time = 0, color = c_white, alpha = 1, font = FALLBACK_FONT) {
+	static text = function(text, time = 0, color = c_white, alpha = 1, font = FALLBACK_FONT, onCharacter = undefined) {
 		var element = array_create(BLABBER_TEXT.LENGTH, BLABBER.TEXT);
 		element[BLABBER_TEXT.TIME] = time;
 		
@@ -257,8 +300,13 @@ function Chatter() constructor {
 
 		element[BLABBER_TEXT.COLOR] = color;
 		element[BLABBER_TEXT.ALPHA] = alpha;
+		element[BLABBER_TEXT.ONCHAR] = onCharacter;
 
 		array_push(stack, element);
+	}
+	
+	static sprite = function(index, time = 0, image = 0, color = c_white, alpha = 1) {
+		array_push(stack, [BLABBER.SPRITE, time, index, image, color, alpha, sprite_get_width(index), sprite_get_height(index), sprite_get_uvs(index, image), pointer_null, 0]);	
 	}
 	
 	static new_line = function(time = 0) {

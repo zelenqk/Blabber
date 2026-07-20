@@ -7,6 +7,7 @@ hello.wait(100);
 
 hello.backspace(9, 64);
 hello.text("ooo im over here", 64);
+hello.sprite(sGlassesEmoji);
 
 dialog.push(hello);
 
