@@ -29,6 +29,11 @@ function blabber_handle_backspace(element, previous){
 		
 		array_delete(current.stack, index-- - 1, 1);
 		return false;
+	case BLABBER.SCRIPT:
+		if (previous[BLABBER_SCRIPT.ONDELETE]) previous[BLABBER_SCRIPT.SCRIPT](cursor);
+		array_delete(current.stack, index-- - 1, 1);
+		
+		return false;
 	case BLABBER.NEWLINE:
 		if (previous[BLABBER_NEWLINE.LENGTH] == 0) {
 			set_cursor(previous[BLABBER_NEWLINE.PREVIOUS])

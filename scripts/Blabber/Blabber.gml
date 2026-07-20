@@ -175,6 +175,10 @@ function Blabber(w = display_get_gui_width()) constructor {
 			);
 			
 			return true;
+		case BLABBER.SCRIPT:
+			element[BLABBER_SCRIPT.SCRIPT](cursor);
+			array_delete(current.stack, index--, 1);
+			return true;
 		case BLABBER.NEWLINE:
 			if (element[BLABBER_NEWLINE.DYNAMIC]) return true;
 			
@@ -230,10 +234,25 @@ function Blabber(w = display_get_gui_width()) constructor {
 	//methods
 	static pop = function() {
 		if (array_length(dialogs) == 0) return; 
-		array_delete(dialogs, 0, 1);
 		
-		if (array_length(dialogs) == 0) current = pointer_null;
-		else current = dialogs[0];
+		array_delete(dialogs, 0, 1);
+		if (array_length(dialogs) == 0) {
+			current = pointer_null;
+			return; 
+		}
+		
+		current = dialogs[0];
+		
+		index = -1;
+		current.buffer = vertex;
+		vertex = [];
+		
+		cursor.x = 0;
+		cursor.y = 0;
+		cursor.width = 0;
+		cursor.height = 0;
+		
+		increment();
 	}
 	
 	static push = function(bla) {
@@ -246,6 +265,7 @@ function Blabber(w = display_get_gui_width()) constructor {
 			increment();
 		}
 	}
+	
 	static step = function(modifier = 1) {
 		if (current == pointer_null) return;
 		time += (delta_time / 1000) * modifier;
@@ -276,16 +296,18 @@ function Blabber(w = display_get_gui_width()) constructor {
 	}
 }
 
-enum BLABBER { TYPE, TIME, TEXT, NEWLINE, WAIT, BACKSPACE, SPRITE, CURSOR_X, CURSOR_Y, CURSOR_POS, ICURSOR_X, ICURSOR_Y, ICURSOR_POS };
+enum BLABBER { TYPE, TIME, TEXT, NEWLINE, WAIT, BACKSPACE, SCRIPT, SPRITE, CURSOR_X, CURSOR_Y, CURSOR_POS, ICURSOR_X, ICURSOR_Y, ICURSOR_POS };
 enum BLABBER_TEXT { TYPE, TIME, TEXT, FONT, COLOR, ALPHA, ONCHAR, BUFFER, START, LENGTH };
 enum BLABBER_SPRITE { TYPE, TIME, INDEX, IMAGE, COLOR, ALPHA, WIDTH, HEIGHT, UV, BUFFER, START };
 enum BLABBER_NEWLINE { TYPE, TIME, PREVIOUS, DYNAMIC, LENGTH};
 enum BLABBER_BACKSPACE { TYPE, TIME, AMOUNT };
+enum BLABBER_SCRIPT { TYPE, TIME, SCRIPT, ONDELETE };
 
 enum BLABBER_CURSOR {TYPE, TIME, POS, PREVIOUS};
 
 function Chatter() constructor {
 	stack = [];
+	buffer = pointer_null;
 	
 	static text = function(text, time = 0, color = c_white, alpha = 1, font = FALLBACK_FONT, onCharacter = undefined) {
 		var element = array_create(BLABBER_TEXT.LENGTH, BLABBER.TEXT);
@@ -306,6 +328,10 @@ function Chatter() constructor {
 	
 	static sprite = function(index, time = 0, image = 0, color = c_white, alpha = 1) {
 		array_push(stack, [BLABBER.SPRITE, time, index, image, color, alpha, sprite_get_width(index), sprite_get_height(index), sprite_get_uvs(index, image), pointer_null, 0]);	
+	}
+	
+	static execute = function(scr, time = 0, onDelete = false) {
+		array_push(stack, [BLABBER.SCRIPT, time, scr, onDelete]);	
 	}
 	
 	static new_line = function(time = 0) {

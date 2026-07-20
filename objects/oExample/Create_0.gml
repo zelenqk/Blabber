@@ -13,4 +13,8 @@ hello.backspace(9, 64);
 
 dialog.push(hello);
 
+something = new Chatter();
+something.text("THis is Not NiEC", 64, c_white, 1, fntDejaVu_Sans);
+dialog.push(something);
+
 spd = 1;
