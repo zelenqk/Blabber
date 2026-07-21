@@ -16,7 +16,7 @@ function Blabber(w = display_get_gui_width()) constructor {
 	index = 0;
 	current = pointer_null;
 	previous = pointer_null;
-	
+	trash = []
 	length = 1;
 	
 	vertex = [];
@@ -243,7 +243,10 @@ function Blabber(w = display_get_gui_width()) constructor {
 		
 		current = dialogs[0];
 		
+		time = 0;
 		index = -1;
+		
+		array_push(trash, vertex);
 		current.buffer = vertex;
 		vertex = [];
 		
@@ -287,9 +290,31 @@ function Blabber(w = display_get_gui_width()) constructor {
 		if (dbg) draw_line(cursor.x, cursor.y + cursor.height, cursor.x + 12, cursor.y + cursor.height);
 	}
 	
+	static purge = function() {
+		for(var i = 0; i < array_length(trash); i++) {
+			var bokluk = trash[i];
+			
+			array_foreach(bokluk, function(e) {
+				for(var i = 0; i < array_length(e); i++) {
+					vertex_delete_buffer(e[i].buffer);
+				}
+			});
+		}
+	}
+	
 	static cleanup = function() {
 		for(var i = 0; i < array_length(vertex); i++) {
 			vertex_delete_buffer(vertex[i].buffer);	
+		}
+		
+		for(var i = 0; i < array_length(trash); i++) {
+			var bokluk = trash[i];
+			
+			array_foreach(bokluk, function(e) {
+				for(var i = 0; i < array_length(e); i++) {
+					vertex_delete_buffer(e[i].buffer);
+				}
+			});
 		}
 		
 		vertex_delete_buffer(temporary);
